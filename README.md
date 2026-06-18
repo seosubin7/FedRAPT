@@ -23,10 +23,14 @@ FedRAPT is a personalized federated learning framework for wearable sensor-based
 
 ## Framework
 
+FedRAPT operates over multiple communication rounds. In each round, the server distributes a shared model and global class prototypes to selected clients. Each client performs local training using both cross-entropy and contrastive loss, then returns the updated shared parameters and class-wise mean embeddings. The server aggregates parameters via FedAvg and refreshes prototypes via EMA. The personalized classifier and raw data never leave the client.
+
 <p align="center">
   <img src="figures/framework.png" width="850" alt="FedRAPT Framework Overview"/>
   <br/><em>Overall FedRAPT framework</em>
 </p>
+
+The core of FedRAPT is the **Cross-Client Representation Alignment (CCRA)** module. Each client computes contrastive loss using global class prototypes as cross-client anchors alongside local batch samples. Same-class prototypes and local embeddings form the positive set; different-class prototypes and local embeddings form the negative set. This structure aligns representations across clients while preserving local discriminability.
 
 <p align="center">
   <img src="figures/ccra_module.png" width="750" alt="CCRA Module"/>
