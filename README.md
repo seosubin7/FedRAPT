@@ -34,7 +34,7 @@ FedRAPT consists of a shared LSTM encoder updated via FedAvg, a projection head 
 ```
 
 ```math
-\beta = 0.9, \quad z_{k,c} : \text{mean embedding of class } c \text{ on client } k
+\beta = 0.9, \quad z_{k,c} = \text{mean embedding of class } c \text{ on client } k
 ```
 
 ---
@@ -58,7 +58,7 @@ During each communication round, the server sends the current shared parameters 
 ```
 
 ```math
-\mathcal{L}_{\mathrm{CE}} : \text{local classification loss}, \quad \mathcal{L}_{\mathrm{CL}} : \text{CCRA-based contrastive loss}
+\mathcal{L}_{\mathrm{CE}} = \text{local classification loss}, \quad \mathcal{L}_{\mathrm{CL}} = \text{CCRA-based contrastive loss}
 ```
 
 For each anchor embedding, the positive set contains:
