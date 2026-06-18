@@ -26,7 +26,7 @@ FedRAPT is a personalized federated learning framework for wearable sensor-based
 FedRAPT operates over multiple communication rounds. In each round, the server distributes a shared model and global class prototypes to selected clients. Each client performs local training using both cross-entropy and contrastive loss, then returns the updated shared parameters and class-wise mean embeddings. The server aggregates parameters via FedAvg and refreshes prototypes via EMA. The personalized classifier and raw data never leave the client.
 
 <p align="center">
-  <img src="figures/framework.png" width="850" alt="FedRAPT Framework Overview"/>
+  <img src="figures/framework.png" width="700" alt="FedRAPT Framework Overview"/>
   <br/><em>Overall FedRAPT framework</em>
 </p>
 
@@ -468,4 +468,7 @@ This project is licensed under the MIT License.
 
 ## Contact
 
-For questions or feedback, please open an issue on GitHub or contact: tnqls8465@naver.com
+For questions or feedback, please open an issue or contact the corresponding authors:
+
+- **Chun-Bo Sim** — cbsim@scnu.ac.kr
+- **Se-Hoon Jung** — shjung@scnu.ac.kr
