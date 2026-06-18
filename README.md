@@ -468,4 +468,4 @@ This project is licensed under the MIT License.
 
 ## Contact
 
-For questions or feedback, please open an issue on GitHub or contact: tjtnqls8465@gmail.com
+For questions or feedback, please open an issue on GitHub or contact: tnqls8465@naver.com
