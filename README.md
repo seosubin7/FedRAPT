@@ -8,6 +8,12 @@ FedRAPT jointly performs **cross-client class alignment**, **local sample discri
 
 <p align="center">
   <img src="figures/framework.png" width="850" alt="FedRAPT Framework Overview"/>
+  <br/><em>Overall FedRAPT framework</em>
+</p>
+
+<p align="center">
+  <img src="figures/ccra_module.png" width="750" alt="CCRA Module"/>
+  <br/><em>Cross-Client Representation Alignment (CCRA) module</em>
 </p>
 
 ---
@@ -39,10 +45,6 @@ The encoder and projection head are aggregated using FedAvg, while the personali
 ---
 
 ## Cross-Client Representation Alignment
-
-<p align="center">
-  <img src="figures/ccra_module.png" width="750" alt="CCRA Module"/>
-</p>
 
 For each anchor embedding, CCRA combines global prototypes and local batch samples:
 
