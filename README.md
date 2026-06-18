@@ -1,34 +1,63 @@
 # FedRAPT: Federated Representation-Aligned Prototypical Contrastive Learning
 
-Personalized federated learning for wearable sensor-based Human Activity Recognition (HAR) under statistical heterogeneity (non-IID).
-
----
-
-## Overview
+FedRAPT is a personalized federated learning framework for Human Activity Recognition under heterogeneous client data distributions. It jointly performs cross-client class-level alignment, local sample discrimination, and client-specific personalization without sharing raw data.
 
 <p align="center">
-  <img src="figures/framework.png" width="650" alt="FedRAPT Framework Overview"/>
+  <img src="figures/framework.png" width="850" alt="FedRAPT Framework Overview"/>
 </p>
 
 ---
 
-## Why FedRAPT
+## Motivation
 
-In federated HAR, each client (user/device) holds data with a different activity distribution. Standard FedAvg suffers from representation drift: the global model is pulled in conflicting directions, degrading personalized accuracy.
+In non-IID federated learning, samples belonging to the same class may be represented differently across clients. This inconsistency can cause representation drift, unstable aggregation, and performance degradation.
 
-FedRAPT addresses this through **Cross-Client Representation Alignment (CCRA)**: the server maintains global class prototypes aggregated from all participating clients, and each client aligns its local feature representations toward these prototypes via InfoNCE contrastive loss — without sharing raw data.
+FedRAPT addresses this problem by using global class prototypes as common alignment anchors while preserving sample-level discriminability through local contrastive learning.
 
 ---
 
 ## Method
 
+FedRAPT separates each client model into shared and personalized components.
+
+| Component       | Role                                                               | Aggregation |
+| --------------- | ------------------------------------------------------------------ | ----------- |
+| LSTM encoder    | Extracts a 64-dimensional representation from each sensor window   | FedAvg      |
+| Projection head | Maps representations into a normalized contrastive embedding space | FedAvg      |
+| FC classifier   | Learns a client-specific decision boundary                         | Local only  |
+
+The encoder and projection head are shared across clients. The classifier remains local and is never transmitted to the server.
+
+### Cross-Client Representation Alignment
+
 <p align="center">
-  <img src="figures/ccra_module.png" width="700" alt="CCRA Module"/>
+  <img src="figures/ccra_module.png" width="750" alt="CCRA Module"/>
 </p>
 
-**Cross-Client Representation Alignment (CCRA):** each client sends class-mean embeddings to the server, which maintains global prototypes via EMA update and broadcasts them back as class-level positive and negative anchors for InfoNCE loss.
+For each anchor embedding, CCRA constructs:
 
-**Prototype EMA update:**
+| Set          | Elements                                                                        |
+| ------------ | ------------------------------------------------------------------------------- |
+| Positive set | Global prototype of the same class and local samples from the same class        |
+| Negative set | Global prototypes of different classes and local samples from different classes |
+
+This design combines class-level alignment across clients with sample-level discrimination within each client.
+
+### Training Objective
+
+```math
+\mathcal{L}_{\mathrm{total}}
+=
+\mathcal{L}_{\mathrm{CE}}
++
+\lambda \mathcal{L}_{\mathrm{CL}}
+```
+
+Here, `L_CE` is the local classification loss and `L_CL` is the CCRA-based contrastive loss.
+
+### Global Prototype Update
+
+Each selected client computes a class-wise mean embedding and sends it to the server. The server updates each global class prototype using exponential moving average:
 
 ```math
 \mu_c^{t+1}
@@ -42,56 +71,28 @@ FedRAPT addresses this through **Cross-Client Representation Alignment (CCRA)**:
 \right)
 ```
 
-where $\beta = 0.9$, and $z_{k,c}$ denotes the mean embedding of class $c$ on client $k$.
-
-Each client minimizes:
-
-```math
-\mathcal{L}_{\mathrm{total}}
-=
-\mathcal{L}_{\mathrm{CE}}
-+
-\lambda \mathcal{L}_{\mathrm{CL}}
-```
-
-where $L_{CE}$ is the local classification loss and $L_{CL}$ is the CCRA-based contrastive loss.
-
-For each anchor embedding, the positive set contains:
-- the global prototype of the same class;
-- local batch embeddings belonging to the same class.
-
-The negative set contains:
-- global prototypes of different classes;
-- local batch embeddings belonging to different classes.
+Here, `β = 0.9`, `z_{k,c}` is the mean embedding of class `c` on client `k`, and `K_c` is the number of participating clients containing class `c`.
 
 ---
 
 ## Training Workflow
 
-FedRAPT decomposes each client model into three components:
-
-- **Shared encoder:** an LSTM encoder extracts a 64-dimensional representation from each 128-step sensor window.
-- **Projection head:** a two-layer MLP maps the encoder representation into a 64-dimensional normalized embedding space used for contrastive learning.
-- **Personalized classifier:** each client maintains its own FC classifier, which is updated locally and is never aggregated by the server.
-
-Each communication round proceeds as follows:
-
-1. The server sends the current shared parameters and global class prototypes to selected clients.
-2. Each client trains locally using CE loss + InfoNCE contrastive loss.
-3. Each client uploads only the updated shared parameters and class-wise mean embeddings. The local classifier and raw data remain on the client.
-4. The server aggregates shared parameters via FedAvg and updates each global prototype via EMA.
+1. The server selects participating clients.
+2. The server sends the shared model parameters and global class prototypes.
+3. Each client trains its encoder, projection head, and personalized classifier.
+4. Each client uploads the updated shared parameters and class-wise mean embeddings.
+5. The server aggregates shared parameters using FedAvg.
+6. The server updates global prototypes using EMA.
+7. Local classifiers and raw data remain on each client.
 
 ---
 
 ## Key Contributions
 
-FedRAPT combines three components within a unified federated learning framework:
-
-1. **Class-level cross-client alignment** using global class prototypes.
-2. **Sample-level discrimination** using local positive and negative samples within InfoNCE.
-3. **Client-specific personalization** through a local classifier that is excluded from global aggregation.
-
-Unlike prototype-only methods, FedRAPT also models sample-level relationships. Unlike conventional contrastive federated learning methods, it provides explicit class-wise global alignment anchors.
+* **Cross-client class-level alignment:** global prototypes provide consistent class-wise reference points across clients.
+* **Sample-level discrimination:** local positive and negative samples preserve fine-grained discriminative relationships.
+* **Personalized classification:** local classifiers adapt to client-specific data distributions.
+* **Stable prototype management:** EMA reduces abrupt prototype fluctuations under partial participation and non-IID data.
 
 ---
 
