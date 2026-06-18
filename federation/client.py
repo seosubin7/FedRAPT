@@ -1,8 +1,10 @@
 # -*- coding:utf-8 -*-
 """
-Client-side training logic for FedCLIP with CCRA
+Client-side training logic for FedRAPT with CCRA
 """
 import copy
+import os
+import sys
 import numpy as np
 import torch
 from sklearn.metrics import accuracy_score, f1_score
@@ -10,15 +12,12 @@ from torch import nn
 from torch.optim.lr_scheduler import StepLR
 from tqdm import tqdm
 
-import os
-import sys
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if ROOT_DIR not in sys.path:
+    sys.path.insert(0, ROOT_DIR)
 
-CURRENT_DIR = os.path.abspath(os.path.dirname(__file__))
-if CURRENT_DIR not in sys.path:
-    sys.path.append(CURRENT_DIR)
-
-from data_process import nn_seq_wind
-from contrastive import prototype_based_infonce_loss, collect_class_embeddings
+from data.loader import nn_seq_wind
+from models.contrastive import prototype_based_infonce_loss, collect_class_embeddings
 
 
 def get_val_loss(args, model, Val):
@@ -57,12 +56,10 @@ def train(args, model, round_idx: int, prototypes=None):
     Dtr, Val, _ = nn_seq_wind(model.name, args.B, data_dir=data_dir)
     model.len = len(Dtr.dataset) if hasattr(Dtr, 'dataset') else len(Dtr)
 
-    # Hyperparameters
     lr = args.lr
     contrastive_weight = getattr(args, 'contrastive_weight', 0.5)
     temperature = getattr(args, 'temperature', 0.07)
 
-    # Optimizer
     if args.optimizer == 'adam':
         optimizer = torch.optim.Adam(model.parameters(), lr=lr,
                                      weight_decay=args.weight_decay)
@@ -76,7 +73,6 @@ def train(args, model, round_idx: int, prototypes=None):
     prog = tqdm(range(args.E), desc=desc, leave=False)
     ce_loss_fn = nn.CrossEntropyLoss().to(args.device)
 
-    # Use contrastive loss only if prototypes are available
     use_contrastive = (prototypes is not None and len(prototypes) > 0)
 
     for epoch in prog:
@@ -88,23 +84,17 @@ def train(args, model, round_idx: int, prototypes=None):
             seq = seq.to(args.device)
             label = label.to(args.device).long()
 
-            # === Forward pass ===
-            # 1. Classification logits
             y_pred = model(seq)
             ce_loss = ce_loss_fn(y_pred, label)
 
-            # 2. Contrastive loss (if prototypes available)
             if use_contrastive:
-                # Get embeddings based on use_projection
                 if getattr(args, 'use_projection', True):
-                    z = model.get_contrastive_embedding(seq)  # With projection head
+                    z = model.get_contrastive_embedding(seq)
                 else:
-                    z = model.get_representation(seq)  # Without projection
+                    z = model.get_representation(seq)
                     z = torch.nn.functional.normalize(z, p=2, dim=1)
 
-                # Choose loss based on use_prototypes
                 if getattr(args, 'use_prototypes', True) and len(prototypes) > 0:
-                    # Use server prototypes (cross-client alignment)
                     cl_loss = prototype_based_infonce_loss(
                         embeddings=z,
                         labels=label,
@@ -113,8 +103,7 @@ def train(args, model, round_idx: int, prototypes=None):
                         use_local_negatives=getattr(args, 'use_local_negatives', True)
                     )
                 else:
-                    # Local-only contrastive (no prototypes)
-                    from contrastive import local_contrastive_loss
+                    from models.contrastive import local_contrastive_loss
                     cl_loss = local_contrastive_loss(
                         embeddings=z,
                         labels=label,
@@ -124,50 +113,37 @@ def train(args, model, round_idx: int, prototypes=None):
             else:
                 cl_loss = torch.tensor(0.0, device=args.device)
 
-            # === Total loss ===
             total_loss = ce_loss + contrastive_weight * cl_loss
 
-            # === Backward pass ===
             optimizer.zero_grad()
             total_loss.backward()
             optimizer.step()
 
-            # Logging
             train_loss.append(total_loss.cpu().item())
             train_ce_loss.append(ce_loss.cpu().item())
             train_cl_loss.append(cl_loss.cpu().item())
 
         lr_step.step()
 
-        # Logging
         if use_contrastive:
             tqdm.write(
                 '[Round {}/{}][{}] epoch {:03d}/{:03d} '
                 'loss {:.6f} (CE {:.6f} + λ*CL {:.6f})'.format(
-                    round_idx + 1,
-                    total_rounds,
-                    model.name,
-                    epoch + 1,
-                    args.E,
-                    np.mean(train_loss),
-                    np.mean(train_ce_loss),
+                    round_idx + 1, total_rounds, model.name,
+                    epoch + 1, args.E,
+                    np.mean(train_loss), np.mean(train_ce_loss),
                     contrastive_weight * np.mean(train_cl_loss),
                 ))
         else:
             tqdm.write(
                 '[Round {}/{}][{}] epoch {:03d}/{:03d} '
                 'train_loss {:.8f}'.format(
-                    round_idx + 1,
-                    total_rounds,
-                    model.name,
-                    epoch + 1,
-                    args.E,
-                    np.mean(train_loss),
+                    round_idx + 1, total_rounds, model.name,
+                    epoch + 1, args.E, np.mean(train_loss),
                 ))
 
     best_model = model
 
-    # === Collect class embeddings to send to server ===
     class_embeddings = collect_class_embeddings(
         model=best_model,
         dataloader=Dtr,
@@ -182,14 +158,8 @@ def evaluate_client(args, model):
     """
     Evaluate model on test data
 
-    Args:
-        args: Arguments
-        model: Model to evaluate
-
     Returns:
-        accuracy: Test accuracy
-        f1: Test F1 score
-        loss: Test loss
+        accuracy, f1, loss
     """
     model.eval()
     data_dir = getattr(args, 'data_dir', None)

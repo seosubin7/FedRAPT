@@ -8,7 +8,7 @@ CURRENT_DIR = os.path.abspath(os.path.dirname(__file__))
 if CURRENT_DIR not in sys.path:
     sys.path.append(CURRENT_DIR)
 
-from data_process import list_clients
+from data.loader import list_clients
 
 def args_parser():
     parser = argparse.ArgumentParser()

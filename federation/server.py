@@ -1,6 +1,6 @@
 # -*- coding:utf-8 -*-
 """
-Server-side logic for FedCLIP with CCRA (Cross-Client Contrastive Representation Alignment)
+Server-side logic for FedRAPT with CCRA (Cross-Client Contrastive Representation Alignment)
 """
 
 import os
@@ -8,20 +8,21 @@ import sys
 import torch
 import copy
 import random
+import numpy as np
 from collections import defaultdict
 
-from client import train, evaluate_client
-from model import LSTM_FedCLIP
-from contrastive import initialize_prototypes, update_prototypes
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if ROOT_DIR not in sys.path:
+    sys.path.insert(0, ROOT_DIR)
 
-CURRENT_DIR = os.path.abspath(os.path.dirname(__file__))
-if CURRENT_DIR not in sys.path:
-    sys.path.append(CURRENT_DIR)
+from federation.client import train, evaluate_client
+from models.lstm import LSTM_FedCLIP
+from models.contrastive import initialize_prototypes, update_prototypes
 
 
 class FedCLIP:
     """
-    FedCLIP Server with Cross-Client Contrastive Representation Alignment (CCRA)
+    FedRAPT Server with Cross-Client Contrastive Representation Alignment (CCRA)
 
     Key components:
     - Maintains global class prototypes μ_c for each class c
@@ -62,10 +63,10 @@ class FedCLIP:
         self.comm_cost = defaultdict(list)
         self._calculate_comm_params()
 
-        print(f"[FedCLIP] Initialized with {args.K} clients")
-        print(f"[FedCLIP] Shared params: {len(self.shared_param_names)}")
-        print(f"[FedCLIP] Class prototypes: {len(self.prototypes)} classes")
-        print(f"[FedCLIP] Communication cost per client per round: {self.params_per_client:,} params (downlink + uplink)")
+        print(f"[FedRAPT] Initialized with {args.K} clients")
+        print(f"[FedRAPT] Shared params: {len(self.shared_param_names)}")
+        print(f"[FedRAPT] Class prototypes: {len(self.prototypes)} classes")
+        print(f"[FedRAPT] Communication cost per client per round: {self.params_per_client:,} params (downlink + uplink)")
 
     def server(self):
         """Main federated learning loop"""
@@ -129,34 +130,23 @@ class FedCLIP:
 
     def _calculate_comm_params(self):
         """Calculate communication cost parameters"""
-        # Count shared parameters
         self.shared_params_count = sum(
             p.numel() for name, p in self.nn.named_parameters()
             if name in self.shared_param_names
         )
-
-        # Count prototype parameters
         self.prototype_params_count = sum(
             proto.numel() for proto in self.prototypes.values()
         )
-
-        # Downlink: shared params + prototypes
         self.downlink_params = self.shared_params_count + self.prototype_params_count
-
-        # Uplink: shared params + prototypes (class embeddings)
         self.uplink_params = self.shared_params_count + self.prototype_params_count
-
-        # Total per client per round
         self.params_per_client = self.downlink_params + self.uplink_params
 
     def _log_comm_cost(self, round_num, num_clients, use_contrastive=True):
         """Log communication cost for this round"""
         if use_contrastive:
-            # Full cost: shared params + prototypes
             round_downlink = self.downlink_params * num_clients
             round_uplink = self.uplink_params * num_clients
         else:
-            # Reduced cost: only shared params, no prototypes
             round_downlink = self.shared_params_count * num_clients
             round_uplink = self.shared_params_count * num_clients
 
@@ -170,100 +160,56 @@ class FedCLIP:
         self.comm_cost['use_contrastive'].append(use_contrastive)
 
     def dispatch(self, selected, use_contrastive=True):
-        """
-        Dispatch global encoder + projection head + (optionally) prototypes to selected clients
-
-        Each client receives:
-        - Latest encoder parameters θ
-        - Latest projection head parameters φ
-        - Latest class prototypes {μ_c} (only if use_contrastive=True)
-
-        Personal classifier heads are NOT dispatched (stay local).
-        """
+        """Dispatch global encoder + projection head to selected clients"""
         global_state = self.nn.state_dict()
 
         for j in selected:
             client_state = self.nns[j].state_dict()
-
-            # Update only shared parameters (encoder + projection)
             for name in self.shared_param_names:
                 client_state[name] = global_state[name].clone()
-
             self.nns[j].load_state_dict(client_state)
 
-        # Note: prototypes are passed to train() function directly in client_update()
-        # The use_contrastive flag controls whether prototypes are used
-
     def client_update(self, round_idx, selected, use_contrastive=True):
-        """
-        Update client models via local training
-
-        Each client:
-        1. Trains with L_CE + λ * L_CL (using prototypes if use_contrastive=True)
-        2. Returns updated model + class embeddings (if use_contrastive=True)
-
-        Args:
-            round_idx: Current round index
-            selected: List of selected client indices
-            use_contrastive: Whether to use contrastive learning this round
-
-        Returns:
-            client_embeddings_list: List of dicts [{class_id: mean_emb}, ...]
-                                    Empty list if use_contrastive=False
-        """
+        """Update client models via local training"""
         client_embeddings_list = []
 
         for k in selected:
-            # Train client k with or without prototypes
             if use_contrastive:
                 updated_model, class_embeddings = train(
                     args=self.args,
                     model=self.nns[k],
                     round_idx=round_idx,
-                    prototypes=self.prototypes  # Pass prototypes for contrastive learning
+                    prototypes=self.prototypes
                 )
-                # Collect class embeddings for prototype update
                 client_embeddings_list.append(class_embeddings)
             else:
-                # Train without contrastive learning (CE loss only)
                 updated_model, _ = train(
                     args=self.args,
                     model=self.nns[k],
                     round_idx=round_idx,
-                    prototypes=None  # No prototypes = no contrastive learning
+                    prototypes=None
                 )
-
-            # Update client model
             self.nns[k] = updated_model
 
         return client_embeddings_list
 
     def aggregation(self, selected):
-        """
-        Aggregate shared parameters (encoder + projection head) using FedAvg
-
-        Personal classifier heads are NOT aggregated (stay local).
-        """
+        """Aggregate shared parameters (encoder + projection head) using FedAvg"""
         s = sum(self.nns[j].len for j in selected)
         if s <= 0:
             return
 
         global_state = self.nn.state_dict()
-
-        # Zero out shared parameters
         for name in self.shared_param_names:
             global_state[name].zero_()
 
-        # Weighted aggregation of shared parameters only
         for j in selected:
             client_state = self.nns[j].state_dict()
             weight = self.nns[j].len / s
             for name in self.shared_param_names:
                 global_state[name] += client_state[name] * weight
 
-        # Update global model with aggregated shared parameters
         self.nn.load_state_dict(global_state)
-
         print(f'  [Aggregation] Updated encoder + projection head')
 
     def global_test(self):
@@ -293,13 +239,11 @@ class FedCLIP:
             acc, f1, loss = evaluate_client(self.args, model)
             name = self.args.clients[idx]
 
-            # Track best accuracy for forgetting rate
             prev_best = self.best_acc.get(name, 0.0)
             forgetting = max(0.0, prev_best - acc)
             if acc > prev_best:
                 self.best_acc[name] = acc
 
-            # Store metrics
             self.history['round'].append(round_number)
             self.history['client'].append(name)
             self.history['accuracy'].append(acc)
@@ -308,7 +252,6 @@ class FedCLIP:
             self.history['forgetting_rate'].append(forgetting)
             self.history['scope'].append(scope)
 
-            # Print results
             if scope == 'personal':
                 print(f'    [{name}] Acc {acc:.4f} | F1 {f1:.4f} | Loss {loss:.4f}')
 
@@ -325,7 +268,7 @@ class FedCLIP:
     def print_comm_summary(self):
         """Print communication cost summary"""
         total_params = sum(self.comm_cost['total_params'])
-        total_mb = total_params * 4 / (1024 ** 2)  # float32
+        total_mb = total_params * 4 / (1024 ** 2)
 
         print('\n' + '=' * 80)
         print('COMMUNICATION COST SUMMARY')
@@ -337,7 +280,3 @@ class FedCLIP:
         print(f"Total params transferred: {total_params:,} params")
         print(f"Total size: {total_mb:.2f} MB (float32)")
         print('=' * 80)
-
-
-# Import numpy for final test average
-import numpy as np

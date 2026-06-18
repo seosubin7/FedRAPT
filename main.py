@@ -8,8 +8,8 @@ if CURRENT_DIR not in sys.path:
 
 import torch
 from args import args_parser
-from server import FedCLIP
-from data_process import infer_input_dim, infer_num_classes
+from federation.server import FedCLIP
+from data.loader import infer_input_dim, infer_num_classes
 from utils import set_seed, save_args_log, save_final_models
 
 

@@ -31,29 +31,36 @@ where beta=0.9 (default), z_{k,c} = mean embedding for class c on client k.
 
 ```
 FedRAPT/
-├── main.py                     # Entry point: federated training loop
-│                               # Note: configs/*.yaml are reference docs, not loaded at runtime.
-├── args.py                     # Argument parser and defaults
-├── server.py                   # Federated server: FedAvg + EMA prototype update
-├── client.py                   # Client: local training (CE + InfoNCE) + evaluation
-├── model.py                    # LSTM_FedRAPT: encoder + projection head + FC classifier
-├── contrastive.py              # InfoNCE loss, collect_class_embeddings, update_prototypes
-├── data_process.py             # .npz -> DataLoader (70/15/15 train/val/test split)
-├── preprocess.py               # Raw datasets -> per-client .npz files
-├── utils.py                    # Seed fixing, arg logging, checkpoint save/load
-├── run.sh                      # Single-dataset runner (recommended entry point)
-├── run_prototype_experiments.sh # EMA strategy ablation (direct/simple_avg/cumulative)
-├── configs/                    # Per-dataset default hyperparameters
+├── main.py                          # Entry point: federated training loop
+├── args.py                          # Argument parser and defaults
+├── utils.py                         # Seed fixing, arg logging, checkpoint save/load
+├── run.sh                           # Single-dataset runner (recommended entry point)
+├── run_prototype_experiments.sh     # Prototype strategy ablation
+│
+├── federation/                      # Federated learning core
+│   ├── server.py                    # FedAvg aggregation + EMA prototype update
+│   └── client.py                    # Local training (CE + InfoNCE) + evaluation
+│
+├── models/                          # Model definitions
+│   ├── lstm.py                      # LSTM encoder + projection head + FC classifier
+│   └── contrastive.py               # InfoNCE loss, collect_class_embeddings, update_prototypes
+│
+├── data/                            # Data pipeline
+│   ├── loader.py                    # .npz -> DataLoader (70/15/15 train/val/test split)
+│   └── preprocess.py                # Raw datasets -> per-client .npz files
+│
+├── configs/                         # Per-dataset reference hyperparameters (not loaded at runtime)
 │   ├── wisdm.yaml
 │   ├── ucihar.yaml
-│   ├── ucihar_alpha01.yaml     # UCI-HAR Dirichlet alpha=0.1
-│   ├── ucihar_alpha05.yaml     # UCI-HAR Dirichlet alpha=0.5
+│   ├── ucihar_alpha01.yaml
+│   ├── ucihar_alpha05.yaml
 │   └── motionsense.yaml
 ├── scripts/
-│   ├── run_all.sh              # Reproduce all 5 datasets x 5 runs
-│   └── summarize_results.py   # Print results table from saved CSVs
-├── result/                     # Created at runtime — metrics CSVs per dataset
-├── checkpoints/                # Created at runtime — saved model weights
+│   ├── run_all.sh                   # Reproduce all 5 datasets x 5 runs
+│   └── summarize_results.py         # Print results table from saved CSVs
+├── figures/                         # Paper figures
+├── result/                          # Created at runtime — metrics CSVs
+├── checkpoints/                     # Created at runtime — saved model weights
 └── requirements.txt
 ```
 
@@ -105,29 +112,29 @@ Tested on: Python 3.10, PyTorch 2.4.0, CUDA 11.8.
 
 ```bash
 # Step 1 — WISDM (provide path to WISDM_ar_v1.1_raw.txt)
-python preprocess.py --dataset wisdm \
+python data/preprocess.py --dataset wisdm \
     --data_dir /path/to/WISDM_ar_v1.1_raw.txt \
     --output_dir ./data/wisdm_npz
 
 # Step 2 — UCI-HAR natural split
-python preprocess.py --dataset ucihar \
+python data/preprocess.py --dataset ucihar \
     --data_dir /path/to/UCI_HAR_Dataset \
     --output_dir ./data/ucihar_npz
 
 # Step 3 — UCI-HAR Dirichlet alpha=0.1 (non-IID, extreme)
-python preprocess.py --dataset ucihar \
+python data/preprocess.py --dataset ucihar \
     --data_dir /path/to/UCI_HAR_Dataset \
     --output_dir ./data/ucihar_npz_alpha01 \
     --dirichlet --alpha 0.1 --seed 42
 
 # Step 4 — UCI-HAR Dirichlet alpha=0.5 (non-IID, moderate)
-python preprocess.py --dataset ucihar \
+python data/preprocess.py --dataset ucihar \
     --data_dir /path/to/UCI_HAR_Dataset \
     --output_dir ./data/ucihar_npz_alpha05 \
     --dirichlet --alpha 0.5 --seed 42
 
 # Step 5 — MotionSense (provide path to A_DeviceMotion_data/)
-python preprocess.py --dataset motionsense \
+python data/preprocess.py --dataset motionsense \
     --data_dir /path/to/A_DeviceMotion_data \
     --output_dir ./data/motionsense_npz
 ```
