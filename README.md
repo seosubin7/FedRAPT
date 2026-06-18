@@ -38,10 +38,10 @@ FedRAPT decomposes each client model into a globally shared representation modul
 During each communication round, the server sends the current shared parameters and global class prototypes to the selected clients. Each client then minimizes
 
 ```
-L_total = L_CE + λ * L_CCRA
+L_total = L_CE + λ * L_CL
 ```
 
-where `L_CE` is the local classification loss and `L_CCRA` is the proposed contrastive alignment loss.
+where `L_CE` is the local classification loss and `L_CL` is the CCRA-based contrastive loss.
 
 For each anchor embedding, the positive set contains:
 - the global prototype of the same class;
