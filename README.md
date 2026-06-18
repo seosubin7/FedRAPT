@@ -13,11 +13,13 @@ FedRAPT addresses statistical heterogeneity (non-IID) across clients through **C
 
 FedRAPT consists of a shared LSTM encoder updated via FedAvg, a projection head for contrastive alignment, and a personalized local classifier that is never aggregated.
 
+<br/>
+
 <p align="center">
   <img src="figures/ccra_module.png" width="700" alt="CCRA Module"/>
 </p>
 
-**Cross-Client Representation Alignment (CCRA):** each client sends class-mean embeddings to the server, which maintains global prototypes via EMA update and broadcasts them back as cross-client positives/negatives for InfoNCE loss.
+**Cross-Client Representation Alignment (CCRA):** each client sends class-mean embeddings to the server, which maintains global prototypes via EMA update and broadcasts them back as class-level positive and negative anchors for InfoNCE loss.
 
 **Prototype EMA update:**
 
@@ -345,15 +347,89 @@ Results from the paper (UCI-HAR α=0.1):
 
 Results from the paper showing the contribution of each component (UCI-HAR α=0.1 and WISDM):
 
-| Dataset | Variant | Accuracy (%) | F1 (%) | Loss | Forgetting Rate |
-|---|---|---|---|---|---|
-| WISDM | w/o All | 93.33 ± 1.82 | 92.99 ± 2.06 | 0.179 ± 0.039 | 0.013 ± 0.001 |
-| WISDM | w/o Per (no personalized head) | 96.05 ± 1.56 | 95.88 ± 1.73 | 0.125 ± 0.048 | 0.020 ± 0.013 |
-| WISDM | w/o P (no prototypes) | 89.99 ± 15.16 | 88.54 ± 18.22 | 0.274 ± 0.371 | 0.032 ± 0.055 |
-| WISDM | w/o CCRA (no contrastive) | 87.13 ± 14.91 | 85.31 ± 18.04 | 0.337 ± 0.341 | 0.045 ± 0.071 |
-| WISDM | **Proposed** | **96.30 ± 0.54** | **96.21 ± 0.59** | **0.118 ± 0.020** | **0.011 ± 0.003** |
-| UCI-HAR (α=0.1) | w/o All | 76.17 ± 7.84 | 71.84 ± 8.97 | 0.673 ± 0.227 | 0.073 ± 0.073 |
-| UCI-HAR (α=0.1) | w/o Per (no personalized head) | 86.78 ± 2.34 | 85.10 ± 2.55 | 0.375 ± 0.053 | 0.040 ± 0.011 |
-| UCI-HAR (α=0.1) | w/o P (no prototypes) | 81.78 ± 1.17 | 78.10 ± 1.42 | 0.506 ± 0.019 | 0.026 ± 0.008 |
-| UCI-HAR (α=0.1) | w/o CCRA (no contrastive) | 75.18 ± 2.98 | 69.69 ± 3.82 | 0.639 ± 0.076 | 0.067 ± 0.019 |
-| UCI-HAR (α=0.1) | **Proposed** | **96.09 ± 0.61** | **95.99 ± 0.68** | **0.120 ± 0.019** | **0.012 ± 0.004** |
+<table>
+  <thead>
+    <tr>
+      <th>Dataset</th>
+      <th>Method</th>
+      <th>Accuracy (↑)</th>
+      <th>F1 Score (↑)</th>
+      <th>Loss (↓)</th>
+      <th>Forgetting Rate (↓)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td rowspan="5"><strong>WISDM</strong></td>
+      <td>w/o All</td>
+      <td>93.33 ± 1.82</td>
+      <td>92.99 ± 2.06</td>
+      <td>0.179 ± 0.039</td>
+      <td>0.013 ± 0.001</td>
+    </tr>
+    <tr>
+      <td>w/o Per</td>
+      <td>96.05 ± 1.56</td>
+      <td>95.88 ± 1.73</td>
+      <td>0.125 ± 0.048</td>
+      <td>0.020 ± 0.013</td>
+    </tr>
+    <tr>
+      <td>w/o P</td>
+      <td>89.99 ± 15.16</td>
+      <td>88.54 ± 18.22</td>
+      <td>0.274 ± 0.371</td>
+      <td>0.032 ± 0.055</td>
+    </tr>
+    <tr>
+      <td>w/o CCRA</td>
+      <td>87.13 ± 14.91</td>
+      <td>85.31 ± 18.04</td>
+      <td>0.337 ± 0.341</td>
+      <td>0.045 ± 0.071</td>
+    </tr>
+    <tr>
+      <td><strong>Proposed</strong></td>
+      <td><strong>96.30 ± 0.54</strong></td>
+      <td><strong>96.21 ± 0.59</strong></td>
+      <td><strong>0.118 ± 0.020</strong></td>
+      <td><strong>0.011 ± 0.003</strong></td>
+    </tr>
+    <tr>
+      <td rowspan="5"><strong>UCI HAR α=0.1</strong></td>
+      <td>w/o All</td>
+      <td>76.17 ± 7.84</td>
+      <td>71.84 ± 8.97</td>
+      <td>0.673 ± 0.227</td>
+      <td>0.073 ± 0.073</td>
+    </tr>
+    <tr>
+      <td>w/o Per</td>
+      <td>86.78 ± 2.34</td>
+      <td>85.10 ± 2.55</td>
+      <td>0.375 ± 0.053</td>
+      <td>0.040 ± 0.011</td>
+    </tr>
+    <tr>
+      <td>w/o P</td>
+      <td>81.78 ± 1.17</td>
+      <td>78.10 ± 1.42</td>
+      <td>0.506 ± 0.019</td>
+      <td>0.026 ± 0.008</td>
+    </tr>
+    <tr>
+      <td>w/o CCRA</td>
+      <td>75.18 ± 2.98</td>
+      <td>69.69 ± 3.82</td>
+      <td>0.639 ± 0.076</td>
+      <td>0.067 ± 0.019</td>
+    </tr>
+    <tr>
+      <td><strong>Proposed</strong></td>
+      <td><strong>96.09 ± 0.61</strong></td>
+      <td><strong>95.99 ± 0.68</strong></td>
+      <td><strong>0.120 ± 0.019</strong></td>
+      <td><strong>0.012 ± 0.004</strong></td>
+    </tr>
+  </tbody>
+</table>
