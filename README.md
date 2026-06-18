@@ -21,12 +21,7 @@ FedRAPT consists of a shared LSTM encoder updated via FedAvg, a projection head 
 
 **Prototype EMA update:**
 
-$$
-\mu_c^{t+1}
-= \beta \mu_c^t
-+ (1-\beta)
-\left( \frac{1}{K_c} \sum_k z_{k,c} \right)
-$$
+$$\mu_c^{t+1} = \beta \mu_c^t + (1-\beta) \left( \frac{1}{K_c} \sum_k z_{k,c} \right)$$
 
 where $\beta=0.9$, and $z_{k,c}$ denotes the mean embedding of class $c$ on client $k$.
 
