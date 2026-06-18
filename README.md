@@ -453,7 +453,7 @@ If you use this code, please cite:
 ```bibtex
 @article{fedrapt2025,
   title   = {FedRAPT: Federated Representation-Aligned Prototypical Contrastive Learning},
-  author  = {},
+  author  = {Seo, Su-Bin and Kim, Jong-Hoon and Shin, Chang-Sun and Lee, Han-Sung and Sim, Chun-Bo and Jung, Se-Hoon},
   year    = {2025}
 }
 ```
