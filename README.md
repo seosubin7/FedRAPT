@@ -55,7 +55,7 @@ During each communication round, the server sends the current shared parameters 
 \lambda \mathcal{L}_{\mathrm{CL}}
 ```
 
-where $\mathcal{L}_{\mathrm{CE}}$ is the local classification loss and $\mathcal{L}_{\mathrm{CL}}$ is the CCRA-based contrastive loss.
+where $L_{CE}$ is the local classification loss and $L_{CL}$ is the CCRA-based contrastive loss.
 
 For each anchor embedding, the positive set contains:
 - the global prototype of the same class;
