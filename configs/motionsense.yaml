@@ -1,0 +1,28 @@
+# MotionSense — Natural user-based split
+dataset: motionsense
+data_dir: ./data/motionsense_npz
+
+# Data info
+num_clients: 24          # 24 subjects
+clients_per_round: 12    # 50% sampled per round
+input_dim: 3             # total acceleration (userAcceleration + gravity), (x, y, z)
+num_classes: 6           # dws, ups, wlk, jog, sit, std
+window_size: 128
+stride: 64
+split_type: natural      # Original subject-based partition
+train_test_split: random_70_15_15  # 70/15/15 random split per client (SHA-256 seed per client)
+
+# Training
+r: 100
+E: 3
+B: 50
+lr: 0.01
+optimizer: sgd
+weight_decay: 0.0001
+
+# Contrastive (CCRA)
+contrastive_weight: 0.5
+temperature: 0.07
+projection_dim: 64
+prototype_beta: 0.9
+proto_update_strategy: ema

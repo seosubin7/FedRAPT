@@ -1,0 +1,27 @@
+# UCI-HAR — Natural user-based split (IID baseline)
+dataset: ucihar
+data_dir: ./data/ucihar_npz
+
+# Data info
+num_clients: 30          # 30 unique subjects
+clients_per_round: 12
+input_dim: 3             # total_acc (x, y, z)
+num_classes: 6           # Walking, Walking Upstairs, Walking Downstairs, Sitting, Standing, Laying
+window_size: 128         # pre-segmented by dataset
+split_type: natural      # Original subject-based partition (each subject = one client)
+train_test_split: random_70_15_15  # Train/val/test split 70/15/15 randomly per client (SHA-256 seed per client)
+
+# Training
+r: 100
+E: 3
+B: 50
+lr: 0.01
+optimizer: sgd
+weight_decay: 0.0001
+
+# Contrastive (CCRA)
+contrastive_weight: 0.5
+temperature: 0.07
+projection_dim: 64
+prototype_beta: 0.9
+proto_update_strategy: ema

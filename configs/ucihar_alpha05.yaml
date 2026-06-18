@@ -1,0 +1,32 @@
+# UCI-HAR — Dirichlet non-IID split (alpha=0.5, moderate heterogeneity)
+#
+# At alpha=0.5, label distribution is moderately skewed.
+# Max/Min sample ratio across clients: ~6.5x
+# Average classes per client: 5.6 (out of 6)
+dataset: ucihar
+data_dir: ./data/ucihar_npz_alpha05
+
+# Data info
+num_clients: 30
+clients_per_round: 12
+input_dim: 3
+num_classes: 6
+window_size: 128
+split_type: dirichlet
+dirichlet_alpha: 0.5
+dirichlet_seed: 42
+
+# Training
+r: 100
+E: 3
+B: 50
+lr: 0.01
+optimizer: sgd
+weight_decay: 0.0001
+
+# Contrastive (CCRA)
+contrastive_weight: 0.5
+temperature: 0.07
+projection_dim: 64
+prototype_beta: 0.9
+proto_update_strategy: ema
