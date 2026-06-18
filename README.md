@@ -1,19 +1,26 @@
 # FedRAPT: Federated Representation-Aligned Prototypical Contrastive Learning
 
-Personalized federated learning for wearable sensor-based Human Activity Recognition (HAR).
-FedRAPT addresses statistical heterogeneity (non-IID) across clients through **Cross-Client Representation Alignment (CCRA)**: the server maintains global class prototypes aggregated from all participating clients, and each client aligns its local feature representations toward these prototypes via InfoNCE contrastive loss — without sharing raw data.
+Personalized federated learning for wearable sensor-based Human Activity Recognition (HAR) under statistical heterogeneity (non-IID).
 
 ---
 
-## Method Overview
+## Overview
 
 <p align="center">
   <img src="figures/framework.png" width="650" alt="FedRAPT Framework Overview"/>
 </p>
 
-<p>FedRAPT consists of a shared LSTM encoder updated via FedAvg, a projection head for contrastive alignment, and a personalized local classifier that is never aggregated.</p>
+---
 
-<br>
+## Why FedRAPT
+
+In federated HAR, each client (user/device) holds data with a different activity distribution. Standard FedAvg suffers from representation drift: the global model is pulled in conflicting directions, degrading personalized accuracy.
+
+FedRAPT addresses this through **Cross-Client Representation Alignment (CCRA)**: the server maintains global class prototypes aggregated from all participating clients, and each client aligns its local feature representations toward these prototypes via InfoNCE contrastive loss — without sharing raw data.
+
+---
+
+## Method
 
 <p align="center">
   <img src="figures/ccra_module.png" width="700" alt="CCRA Module"/>
@@ -37,17 +44,7 @@ FedRAPT addresses statistical heterogeneity (non-IID) across clients through **C
 
 where $\beta = 0.9$, and $z_{k,c}$ denotes the mean embedding of class $c$ on client $k$.
 
----
-
-## How FedRAPT Works
-
-FedRAPT decomposes each client model into a globally shared representation module and a locally personalized classifier.
-
-- **Shared encoder:** an LSTM encoder extracts a 64-dimensional representation from each 128-step sensor window.
-- **Projection head:** a two-layer MLP maps the encoder representation into a 64-dimensional normalized embedding space used for contrastive learning.
-- **Personalized classifier:** each client maintains its own FC classifier, which is updated locally and is never aggregated by the server.
-
-During each communication round, the server sends the current shared parameters and global class prototypes to the selected clients. Each client then minimizes
+Each client minimizes:
 
 ```math
 \mathcal{L}_{\mathrm{total}}
@@ -67,7 +64,22 @@ The negative set contains:
 - global prototypes of different classes;
 - local batch embeddings belonging to different classes.
 
-After local training, each client uploads only the updated shared parameters and class-wise mean embeddings. The local classifier and raw data remain on the client. The server aggregates the shared parameters using FedAvg and updates each global class prototype using EMA.
+---
+
+## Training Workflow
+
+FedRAPT decomposes each client model into three components:
+
+- **Shared encoder:** an LSTM encoder extracts a 64-dimensional representation from each 128-step sensor window.
+- **Projection head:** a two-layer MLP maps the encoder representation into a 64-dimensional normalized embedding space used for contrastive learning.
+- **Personalized classifier:** each client maintains its own FC classifier, which is updated locally and is never aggregated by the server.
+
+Each communication round proceeds as follows:
+
+1. The server sends the current shared parameters and global class prototypes to selected clients.
+2. Each client trains locally using CE loss + InfoNCE contrastive loss.
+3. Each client uploads only the updated shared parameters and class-wise mean embeddings. The local classifier and raw data remain on the client.
+4. The server aggregates shared parameters via FedAvg and updates each global prototype via EMA.
 
 ---
 
@@ -260,7 +272,7 @@ python main.py \
 
 ---
 
-## Reproducing Main Results
+## Results
 
 ```bash
 # Set data paths (or edit scripts/run_all.sh)
@@ -289,9 +301,7 @@ Expected results (mean ± std over 5 independent runs, personalized accuracy at 
 | UCI-HAR (α=0.5) | 94.42 ± 4.78 | 93.84 ± 5.90 | 0.168 ± 0.121 | 0.024 ± 0.036 |
 | MotionSense | 94.00 ± 1.92 | 93.65 ± 2.29 | 0.193 ± 0.057 | 0.016 ± 0.005 |
 
----
-
-## Output Files
+### Output Files
 
 ```
 result/
@@ -321,7 +331,9 @@ checkpoints/
 
 ---
 
-## Prototype Update Strategy Ablation
+## Ablation
+
+### Prototype Update Strategy
 
 To compare EMA vs. alternative prototype update strategies:
 
@@ -341,9 +353,7 @@ Results from the paper (UCI-HAR α=0.1):
 | Cumulative | 86.71 ± 2.66 | 83.88 ± 3.45 | 0.394 ± 0.060 | 0.031 ± 0.021 |
 | **EMA β=0.9 (Proposed)** | **96.09 ± 0.61** | **95.99 ± 0.68** | **0.120 ± 0.019** | **0.012 ± 0.004** |
 
----
-
-## Ablation Study
+### Component Ablation
 
 Results from the paper showing the contribution of each component (UCI-HAR α=0.1 and WISDM):
 
@@ -433,3 +443,21 @@ Results from the paper showing the contribution of each component (UCI-HAR α=0.
     </tr>
   </tbody>
 </table>
+
+---
+
+## Citation
+
+If you use this code, please cite:
+
+```bibtex
+@article{fedrapt2025,
+  title   = {FedRAPT: Federated Representation-Aligned Prototypical Contrastive Learning},
+  author  = {},
+  year    = {2025}
+}
+```
+
+## License
+
+This project is licensed under the MIT License.
