@@ -27,6 +27,46 @@ where beta=0.9 (default), z_{k,c} = mean embedding for class c on client k.
 
 ---
 
+## How FedRAPT Works
+
+FedRAPT decomposes each client model into a globally shared representation module and a locally personalized classifier.
+
+- **Shared encoder:** an LSTM encoder extracts a 64-dimensional representation from each 128-step sensor window.
+- **Projection head:** a two-layer MLP maps the encoder representation into a 64-dimensional normalized embedding space used for contrastive learning.
+- **Personalized classifier:** each client maintains its own FC classifier, which is updated locally and is never aggregated by the server.
+
+During each communication round, the server sends the current shared parameters and global class prototypes to the selected clients. Each client then minimizes
+
+```
+L_total = L_CE + λ * L_CCRA
+```
+
+where `L_CE` is the local classification loss and `L_CCRA` is the proposed contrastive alignment loss.
+
+For each anchor embedding, the positive set contains:
+- the global prototype of the same class;
+- local batch embeddings belonging to the same class.
+
+The negative set contains:
+- global prototypes of different classes;
+- local batch embeddings belonging to different classes.
+
+After local training, each client uploads only the updated shared parameters and class-wise mean embeddings. The local classifier and raw data remain on the client. The server aggregates the shared parameters using FedAvg and updates each global class prototype using EMA.
+
+---
+
+## Key Contributions
+
+FedRAPT combines three components within a unified federated learning framework:
+
+1. **Class-level cross-client alignment** using global class prototypes.
+2. **Sample-level discrimination** using local positive and negative samples within InfoNCE.
+3. **Client-specific personalization** through a local classifier that is excluded from global aggregation.
+
+Unlike prototype-only methods, FedRAPT also models sample-level relationships. Unlike conventional contrastive federated learning methods, it provides explicit class-wise global alignment anchors.
+
+---
+
 ## Project Structure
 
 ```
@@ -90,9 +130,11 @@ Tested on: Python 3.10, PyTorch 2.4.0, CUDA 11.8.
 | UCI-HAR | 30 | 6 | Total acceleration (x,y,z) | https://archive.ics.uci.edu/dataset/240/human+activity+recognition+using+smartphones |
 | MotionSense | 24 | 6 | Total acceleration (x,y,z) | https://github.com/mmalekzadeh/motion-sense |
 
-| WISDM | raw 20 Hz upsampled to 50 Hz via linear interpolation; sliding window (128 steps, stride 64) |
-| MotionSense | sliding window (128 steps, stride 64) |
-| UCI-HAR | pre-segmented 128-step windows provided by dataset; no sliding window applied |
+| Dataset | Preprocessing |
+|---|---|
+| WISDM | Raw 20 Hz signals are upsampled to 50 Hz via linear interpolation, followed by sliding-window segmentation with 128 steps and stride 64 |
+| MotionSense | Sliding-window segmentation with 128 steps and stride 64 |
+| UCI-HAR | Pre-segmented 128-step windows provided by the dataset are used directly |
 
 ### Data Split Strategy
 
@@ -169,7 +211,7 @@ bash run.sh wisdm --data_dir /my/custom/path/wisdm_npz
 - `--runs N` : number of independent repetitions (each saves a separate CSV)
 - `--global_rounds N` : number of federated communication rounds (default: 100)
 - `--local_epochs N` : local training epochs per client per round (default: 3)
-- `--seed N` : random seed; if omitted, each run uses a different random seed
+- `--seed N` : random seed; if omitted, the random seed is not fixed, resulting in different stochastic runs
 
 Or run directly:
 
@@ -198,7 +240,7 @@ python main.py \
 | `--projection_dim` | 64 | Projection head output dimension |
 | `--hidden_size` | 64 | LSTM hidden dimension |
 | `--proto_update_strategy` | `ema` | Prototype update: `ema`, `direct`, `simple_avg`, `cumulative` |
-| `--seed` | None | Random seed (unset = random) |
+| `--seed` | None | Random seed; if omitted, the random seed is not fixed, resulting in different stochastic runs |
 
 ---
 
@@ -223,13 +265,13 @@ python scripts/summarize_results.py
 
 Expected results (mean ± std over 5 independent runs, personalized accuracy at round 100):
 
-| Dataset | Accuracy (%) | F1 Score (%) |
-|---|---|---|
-| WISDM | 96.30 ± 0.47 | 96.23 ± 0.50 |
-| UCI-HAR (natural) | 96.13 ± 0.37 | 96.06 ± 0.38 |
-| UCI-HAR (α=0.1) | 96.09 ± 0.55 | 95.99 ± 0.61 |
-| UCI-HAR (α=0.5) | 94.42 ± 4.78 | — |
-| MotionSense | 94.00 ± 0.71 | 93.74 ± 0.80 |
+| Dataset | Accuracy (%) | F1 Score (%) | Loss | Forgetting Rate |
+|---|---|---|---|---|
+| WISDM | 96.30 ± 0.54 | 96.21 ± 0.59 | 0.118 ± 0.020 | 0.011 ± 0.003 |
+| UCI-HAR (natural) | 96.13 ± 0.24 | 96.04 ± 0.28 | 0.117 ± 0.008 | 0.011 ± 0.002 |
+| UCI-HAR (α=0.1) | 96.09 ± 0.61 | 95.99 ± 0.68 | 0.120 ± 0.019 | 0.012 ± 0.004 |
+| UCI-HAR (α=0.5) | 94.42 ± 4.78 | 93.84 ± 5.90 | 0.168 ± 0.121 | 0.024 ± 0.036 |
+| MotionSense | 94.00 ± 1.92 | 93.65 ± 2.29 | 0.193 ± 0.057 | 0.016 ± 0.005 |
 
 ---
 
@@ -276,9 +318,28 @@ EMA results come from `result/ucihar_alpha01/`.
 
 Results from the paper (UCI-HAR α=0.1):
 
-| Strategy | Accuracy (%) | F1 (%) |
-|---|---|---|
-| Direct | 87.02 ± 1.13 | 84.13 ± 1.22 |
-| Simple Average | 86.89 ± 2.65 | 83.99 ± 2.97 |
-| Cumulative | 86.71 ± 2.66 | 83.88 ± 3.45 |
-| **EMA β=0.9 (Proposed)** | **96.09 ± 0.55** | **95.99 ± 0.61** |
+| Strategy | Accuracy (%) | F1 (%) | Loss | Forgetting Rate |
+|---|---|---|---|---|
+| Direct | 87.02 ± 1.13 | 84.13 ± 1.22 | 0.355 ± 0.030 | 0.019 ± 0.006 |
+| Simple Average | 86.89 ± 2.65 | 83.99 ± 2.97 | 0.365 ± 0.071 | 0.031 ± 0.018 |
+| Cumulative | 86.71 ± 2.66 | 83.88 ± 3.45 | 0.394 ± 0.060 | 0.031 ± 0.021 |
+| **EMA β=0.9 (Proposed)** | **96.09 ± 0.61** | **95.99 ± 0.68** | **0.120 ± 0.019** | **0.012 ± 0.004** |
+
+---
+
+## Ablation Study
+
+Results from the paper showing the contribution of each component (UCI-HAR α=0.1 and WISDM):
+
+| Dataset | Variant | Accuracy (%) | F1 (%) | Loss | Forgetting Rate |
+|---|---|---|---|---|---|
+| WISDM | w/o All | 93.33 ± 1.82 | 92.99 ± 2.06 | 0.179 ± 0.039 | 0.013 ± 0.001 |
+| WISDM | w/o Per (no personalized head) | 96.05 ± 1.56 | 95.88 ± 1.73 | 0.125 ± 0.048 | 0.020 ± 0.013 |
+| WISDM | w/o P (no prototypes) | 89.99 ± 15.16 | 88.54 ± 18.22 | 0.274 ± 0.371 | 0.032 ± 0.055 |
+| WISDM | w/o CCRA (no contrastive) | 87.13 ± 14.91 | 85.31 ± 18.04 | 0.337 ± 0.341 | 0.045 ± 0.071 |
+| WISDM | **Proposed** | **96.30 ± 0.54** | **96.21 ± 0.59** | **0.118 ± 0.020** | **0.011 ± 0.003** |
+| UCI-HAR (α=0.1) | w/o All | 76.17 ± 7.84 | 71.84 ± 8.97 | 0.673 ± 0.227 | 0.073 ± 0.073 |
+| UCI-HAR (α=0.1) | w/o Per (no personalized head) | 86.78 ± 2.34 | 85.10 ± 2.55 | 0.375 ± 0.053 | 0.040 ± 0.011 |
+| UCI-HAR (α=0.1) | w/o P (no prototypes) | 81.78 ± 1.17 | 78.10 ± 1.42 | 0.506 ± 0.019 | 0.026 ± 0.008 |
+| UCI-HAR (α=0.1) | w/o CCRA (no contrastive) | 75.18 ± 2.98 | 69.69 ± 3.82 | 0.639 ± 0.076 | 0.067 ± 0.019 |
+| UCI-HAR (α=0.1) | **Proposed** | **96.09 ± 0.61** | **95.99 ± 0.68** | **0.120 ± 0.019** | **0.012 ± 0.004** |
