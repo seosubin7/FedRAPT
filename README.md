@@ -1,6 +1,10 @@
 # FedRAPT: Federated Representation-Aligned Prototypical Contrastive Learning
 
-FedRAPT is a personalized federated learning framework for Human Activity Recognition under heterogeneous client data distributions. It jointly performs cross-client class-level alignment, local sample discrimination, and client-specific personalization without sharing raw data.
+<p align="center">
+  <strong>Personalized federated representation learning for non-IID Human Activity Recognition</strong>
+</p>
+
+FedRAPT jointly performs **cross-client class alignment**, **local sample discrimination**, and **client-specific personalization** without sharing raw data.
 
 <p align="center">
   <img src="figures/framework.png" width="850" alt="FedRAPT Framework Overview"/>
@@ -8,40 +12,46 @@ FedRAPT is a personalized federated learning framework for Human Activity Recogn
 
 ---
 
-## Motivation
+## Overview
 
-In non-IID federated learning, samples belonging to the same class may be represented differently across clients. This inconsistency can cause representation drift, unstable aggregation, and performance degradation.
+In non-IID federated learning, samples from the same activity class can form inconsistent representations across clients. This representation drift may lead to unstable aggregation and degraded global performance.
 
-FedRAPT addresses this problem by using global class prototypes as common alignment anchors while preserving sample-level discriminability through local contrastive learning.
+FedRAPT addresses this problem through three complementary mechanisms:
+
+| Mechanism                      | Purpose                                                         |
+| ------------------------------ | --------------------------------------------------------------- |
+| **Global class prototypes**    | Align representations of the same class across clients          |
+| **Local contrastive learning** | Preserve sample-level discriminability within each client       |
+| **Personalized classifier**    | Adapt the decision boundary to each client's local distribution |
 
 ---
 
-## Method
+## Model Architecture
 
-FedRAPT separates each client model into shared and personalized components.
+| Module              | Function                                                               | Sharing Scope   |
+| ------------------- | ---------------------------------------------------------------------- | --------------- |
+| **LSTM encoder**    | Extracts a 64-dimensional representation from a 128-step sensor window | Globally shared |
+| **Projection head** | Maps representations to a normalized 64-dimensional contrastive space  | Globally shared |
+| **FC classifier**   | Learns a client-specific activity decision boundary                    | Local only      |
 
-| Component       | Role                                                               | Aggregation |
-| --------------- | ------------------------------------------------------------------ | ----------- |
-| LSTM encoder    | Extracts a 64-dimensional representation from each sensor window   | FedAvg      |
-| Projection head | Maps representations into a normalized contrastive embedding space | FedAvg      |
-| FC classifier   | Learns a client-specific decision boundary                         | Local only  |
+The encoder and projection head are aggregated using FedAvg, while the personalized classifier remains on each client.
 
-The encoder and projection head are shared across clients. The classifier remains local and is never transmitted to the server.
+---
 
-### Cross-Client Representation Alignment
+## Cross-Client Representation Alignment
 
 <p align="center">
   <img src="figures/ccra_module.png" width="750" alt="CCRA Module"/>
 </p>
 
-For each anchor embedding, CCRA constructs:
+For each anchor embedding, CCRA combines global prototypes and local batch samples:
 
-| Set          | Elements                                                                        |
-| ------------ | ------------------------------------------------------------------------------- |
-| Positive set | Global prototype of the same class and local samples from the same class        |
-| Negative set | Global prototypes of different classes and local samples from different classes |
+| Set          | Included elements                                                   |
+| ------------ | ------------------------------------------------------------------- |
+| **Positive** | Same-class global prototype and same-class local samples            |
+| **Negative** | Different-class global prototypes and different-class local samples |
 
-This design combines class-level alignment across clients with sample-level discrimination within each client.
+This unified contrastive structure simultaneously improves **class-level consistency across clients** and **sample-level discrimination within clients**.
 
 ### Training Objective
 
@@ -53,11 +63,13 @@ This design combines class-level alignment across clients with sample-level disc
 \lambda \mathcal{L}_{\mathrm{CL}}
 ```
 
-Here, `L_CE` is the local classification loss and `L_CL` is the CCRA-based contrastive loss.
+* $\mathcal{L}_{\mathrm{CE}}$: local classification loss
+* $\mathcal{L}_{\mathrm{CL}}$: CCRA-based contrastive loss
+* $\lambda$: contrastive loss weight
 
 ### Global Prototype Update
 
-Each selected client computes a class-wise mean embedding and sends it to the server. The server updates each global class prototype using exponential moving average:
+After local training, participating clients send class-wise mean embeddings to the server. The server updates each global prototype using exponential moving average:
 
 ```math
 \mu_c^{t+1}
@@ -71,28 +83,40 @@ Each selected client computes a class-wise mean embedding and sends it to the se
 \right)
 ```
 
-Here, `β = 0.9`, `z_{k,c}` is the mean embedding of class `c` on client `k`, and `K_c` is the number of participating clients containing class `c`.
+where $\beta=0.9$, $z_{k,c}$ is the mean embedding of class $c$ on client $k$, and $K_c$ is the number of participating clients containing class $c$.
 
 ---
 
-## Training Workflow
+## Federated Training Process
 
-1. The server selects participating clients.
-2. The server sends the shared model parameters and global class prototypes.
-3. Each client trains its encoder, projection head, and personalized classifier.
-4. Each client uploads the updated shared parameters and class-wise mean embeddings.
-5. The server aggregates shared parameters using FedAvg.
-6. The server updates global prototypes using EMA.
-7. Local classifiers and raw data remain on each client.
+```text
+Server
+  │
+  ├── 1. Select participating clients
+  ├── 2. Broadcast shared parameters and global prototypes
+  │
+Clients
+  ├── 3. Train encoder, projection head, and local classifier
+  ├── 4. Compute class-wise mean embeddings
+  └── 5. Upload shared parameters and local prototypes
+  │
+Server
+  ├── 6. Aggregate shared parameters using FedAvg
+  └── 7. Update global prototypes using EMA
+```
+
+Raw data and personalized classifier parameters never leave the client.
 
 ---
 
-## Key Contributions
+## Key Features
 
-* **Cross-client class-level alignment:** global prototypes provide consistent class-wise reference points across clients.
-* **Sample-level discrimination:** local positive and negative samples preserve fine-grained discriminative relationships.
-* **Personalized classification:** local classifiers adapt to client-specific data distributions.
-* **Stable prototype management:** EMA reduces abrupt prototype fluctuations under partial participation and non-IID data.
+| Feature                          | Benefit                                                    |
+| -------------------------------- | ---------------------------------------------------------- |
+| **Cross-client class alignment** | Builds consistent class-wise representation structures     |
+| **Sample-level discrimination**  | Preserves fine-grained local relationships                 |
+| **Personalized prediction**      | Adapts to client-specific data distributions               |
+| **EMA prototype management**     | Reduces prototype fluctuations under partial participation |
 
 ---
 
