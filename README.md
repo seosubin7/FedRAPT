@@ -11,6 +11,8 @@ FedRAPT addresses statistical heterogeneity (non-IID) across clients through **C
   <img src="figures/framework.png" width="800" alt="FedRAPT Framework Overview"/>
 </p>
 
+<br/>
+
 FedRAPT consists of a shared LSTM encoder updated via FedAvg, a projection head for contrastive alignment, and a personalized local classifier that is never aggregated.
 
 <br/>
