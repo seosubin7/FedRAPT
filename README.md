@@ -468,7 +468,15 @@ This project is licensed under the MIT License.
 
 ## Contact
 
-For questions or feedback, please open an issue or contact the corresponding authors:
+For questions or feedback, please open an issue or contact:
+
+- **Subin Seo** — tnqls8465@naver.com
+  Sunchon National University, Department of Computer Engineering, Suncheon, 57922, Korea
+
+**Corresponding authors:**
+
+- **Se-Hoon Jung** — shjung@scnu.ac.kr
+  Sunchon National University, Department of Computer Engineering, Suncheon, 57922, Korea
 
 - **Chun-Bo Sim** — cbsim@scnu.ac.kr
-- **Se-Hoon Jung** — shjung@scnu.ac.kr
+  Sunchon National University, Interdisciplinary Program in IT-Bio Convergence System, Suncheon, 57922, Korea
