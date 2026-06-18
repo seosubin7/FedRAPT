@@ -23,7 +23,7 @@ FedRAPT consists of a shared LSTM encoder updated via FedAvg, a projection head 
 
 $$\mu_c^{t+1} = \beta \mu_c^t + (1-\beta) \left( \frac{1}{K_c} \sum_k z_{k,c} \right)$$
 
-where $\beta=0.9$, and `z_{k,c}` denotes the mean embedding of class $c$ on client $k$.
+where β = 0.9, and z_{k,c} denotes the mean embedding of class c on client k.
 
 ---
 
@@ -37,9 +37,7 @@ FedRAPT decomposes each client model into a globally shared representation modul
 
 During each communication round, the server sends the current shared parameters and global class prototypes to the selected clients. Each client then minimizes
 
-$$
-\mathcal{L}_{\mathrm{total}} = \mathcal{L}_{\mathrm{CE}} + \lambda \mathcal{L}_{\mathrm{CL}}
-$$
+$$L_\text{total} = L_\text{CE} + \lambda L_\text{CL}$$
 
 where `L_CE` is the local classification loss and `L_CL` is the CCRA-based contrastive loss.
 
