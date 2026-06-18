@@ -7,19 +7,17 @@ FedRAPT addresses statistical heterogeneity (non-IID) across clients through **C
 
 ## Method Overview
 
-```
-Client k                                     Server
---------                                     ------
- Local data (non-IID)                    Global prototypes {mu_c}
-      |                                           ^
-      v                                           |  EMA update:
- LSTM Encoder ──> Projection Head ──> z_{k,c}    |  mu_c <- beta*mu_c + (1-beta)*mean(z_{k,c})
-      |                                           |
-      |  L_total = L_CE + lambda * L_InfoNCE      |
-      |  (align z toward mu_c from server)        |
-      v
- Personalized FC Classifier (local only, NOT aggregated)
-```
+<p align="center">
+  <img src="figures/framework.png" width="800" alt="FedRAPT Framework Overview"/>
+</p>
+
+FedRAPT consists of a shared LSTM encoder updated via FedAvg, a projection head for contrastive alignment, and a personalized local classifier that is never aggregated.
+
+<p align="center">
+  <img src="figures/ccra_module.png" width="700" alt="CCRA Module"/>
+</p>
+
+**Cross-Client Representation Alignment (CCRA):** each client sends class-mean embeddings to the server, which maintains global prototypes via EMA update and broadcasts them back as cross-client positives/negatives for InfoNCE loss.
 
 **Prototype EMA update:**
 ```
