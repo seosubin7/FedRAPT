@@ -39,6 +39,8 @@ The core of FedRAPT is the **Cross-Client Representation Alignment (CCRA)** modu
   <br/><em>Cross-Client Representation Alignment (CCRA) module</em>
 </p>
 
+<br><br>
+
 ---
 
 ## Method
