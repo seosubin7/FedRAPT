@@ -26,14 +26,14 @@ FedRAPT is a personalized federated learning framework for wearable sensor-based
 FedRAPT operates over multiple communication rounds. In each round, the server distributes a shared model and global class prototypes to selected clients. Each client performs local training using both cross-entropy and contrastive loss, then returns the updated shared parameters and class-wise mean embeddings. The server aggregates parameters via FedAvg and refreshes prototypes via EMA. The personalized classifier and raw data never leave the client.
 
 <p align="center">
-  <img src="figures/framework.png" width="700" alt="FedRAPT Framework Overview"/>
+  <img src="figures/framework.png" width="600" alt="FedRAPT Framework Overview"/>
   <br/><em>Overall FedRAPT framework</em>
 </p>
 
 The core of FedRAPT is the **Cross-Client Representation Alignment (CCRA)** module. Each client computes contrastive loss using global class prototypes as cross-client anchors alongside local batch samples. Same-class prototypes and local embeddings form the positive set; different-class prototypes and local embeddings form the negative set. This structure aligns representations across clients while preserving local discriminability.
 
 <p align="center">
-  <img src="figures/ccra_module.png" width="750" alt="CCRA Module"/>
+  <img src="figures/ccra_module.png" width="650" alt="CCRA Module"/>
   <br/><em>Cross-Client Representation Alignment (CCRA) module</em>
 </p>
 
@@ -453,7 +453,7 @@ If you use this code, please cite:
 ```bibtex
 @article{fedrapt2025,
   title   = {FedRAPT: Federated Representation-Aligned Prototypical Contrastive Learning},
-  author  = {Seo, Su-Bin and Kim, Jong-Hoon and Shin, Chang-Sun and Lee, Han-Sung and Sim, Chun-Bo and Jung, Se-Hoon},
+  author  = {Su-Bin Seo and Jong-Hoon Kim and Chang-Sun Shin and Han-Sung Lee and Chun-Bo Sim and Se-Hoon Jung},
   year    = {2025}
 }
 ```
