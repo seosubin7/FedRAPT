@@ -117,7 +117,7 @@ After local training, each client sends class-wise mean embeddings to the server
 where $\beta=0.9$, $z_{k,c}$ is the mean embedding of class $c$ on client $k$, and $K_c$ is the number of participating clients containing class $c$.
 
 ---
-
+<br>
 ## Repository Structure
 
 ```
@@ -182,6 +182,7 @@ Tested on Python 3.10, PyTorch 2.4.0, CUDA 11.8.
 | WISDM       | Raw 20 Hz signals upsampled to 50 Hz via linear interpolation; sliding window (128 steps, stride 64) |
 | MotionSense | Sliding window (128 steps, stride 64) |
 | UCI-HAR     | Pre-segmented 128-step windows provided by the dataset |
+<br>
 
 ```bash
 # WISDM
@@ -302,6 +303,7 @@ Mean ± std over 5 independent runs (personalized accuracy at round 100):
 | Simple Average       | 86.89 ± 2.65         | 83.99 ± 2.97         | 0.365 ± 0.071         | 0.031 ± 0.018         |
 | Cumulative           | 86.71 ± 2.66         | 83.88 ± 3.45         | 0.394 ± 0.060         | 0.031 ± 0.021         |
 | **EMA β=0.9 (Ours)** | **96.09 ± 0.61**     | **95.99 ± 0.68**     | **0.120 ± 0.019**     | **0.012 ± 0.004**     |
+<br>
 
 ### Component Ablation
 
