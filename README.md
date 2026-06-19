@@ -303,7 +303,6 @@ Mean ± std over 5 independent runs (personalized accuracy at round 100):
 | Simple Average       | 86.89 ± 2.65         | 83.99 ± 2.97         | 0.365 ± 0.071         | 0.031 ± 0.018         |
 | Cumulative           | 86.71 ± 2.66         | 83.88 ± 3.45         | 0.394 ± 0.060         | 0.031 ± 0.021         |
 | **EMA β=0.9 (Ours)** | **96.09 ± 0.61**     | **95.99 ± 0.68**     | **0.120 ± 0.019**     | **0.012 ± 0.004**     |
-<br>
 
 ### Component Ablation
 
